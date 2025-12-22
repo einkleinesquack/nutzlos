@@ -1,29 +1,36 @@
 import pygame
+
 pygame.init()
 
-W, H = 1000, 600
+# --- Setup ---
+W, H = pygame.display.Info().current_w, pygame.display.Info().current_h
 FPS = 120
 WEISS = (255, 255, 255)
+scene = 1
 
-fenster = pygame.display.set_mode((W, H))
+fenster = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 pygame.display.set_caption("Spiel mit der NETTEN Biene")
 clock = pygame.time.Clock()
 
-spieler = pygame.image.load("plaschi.png").convert_alpha()
-spieler = pygame.transform.scale(spieler, (275//2, 362//2))
+# --- Load images ---
+spieler_original = pygame.image.load("plaschi.png").convert_alpha()
+# optional: start smaller
+spieler_original = pygame.transform.scale(spieler_original, (275 // 2, 362 // 2))
 
-gras = pygame.image.load("grass.png").convert_alpha()
-gras = pygame.transform.scale(gras, (1000, 650))
+gras = pygame.image.load("street.jpg").convert_alpha()
+gras = pygame.transform.scale(gras, (W, H))
 
+# --- Player starting position ---
 spielerposX, spielerposY = 300, 300
 
 spielaktiv = True
-while spielaktiv:
+
+while spielaktiv and scene == 1:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             spielaktiv = False
 
-    # Tasten abfragen
+    # --- Movement ---
     keys = pygame.key.get_pressed()
     if keys[pygame.K_SPACE]:
         spielerposY -= 3
@@ -34,14 +41,113 @@ while spielaktiv:
     if keys[pygame.K_d]:
         spielerposX += 3
 
-    # Begrenzung Spieler im Fenster
-    spielerposX = max(0, min(spielerposX, W - spieler.get_width()))
-    spielerposY = max(0, min(spielerposY, H - spieler.get_height()))
+    # --- Keep player in window ---
+    spielerposX = max(0, min(spielerposX, W - spieler_original.get_width()))
+    spielerposY = max(0, min(spielerposY, H - spieler_original.get_height()))
 
-    # Rendern
+    # --- Scale player based on Y position ---
+    # Scaling factor: 1.0 at Y=300, grows to ~1.8 at Y=531
+    scale_factor = 1 + (spielerposY - 300) / 300  
+
+    original_width, original_height = spieler_original.get_size()
+    new_width = int(original_width * scale_factor)
+    new_height = int(original_height * scale_factor)
+
+    scaled_image = pygame.transform.scale(spieler_original, (new_width, new_height))
+
+    # Optional: keep feet at same position
+    draw_posY = spielerposY - (new_height - original_height)
+
+    # --- Render ---
     fenster.fill(WEISS)
     fenster.blit(gras, (0, 0))
-    fenster.blit(spieler, (spielerposX, spielerposY))
+    fenster.blit(scaled_image, (spielerposX, draw_posY))
+    
+    pygame.display.flip()
+    clock.tick(FPS)
+
+pygame.quit()
+
+
+
+
+
+-------------------- Second version 
+
+
+
+
+
+
+import pygame
+
+pygame.init()
+
+# --- Setup ---
+W, H = pygame.display.Info().current_w, pygame.display.Info().current_h
+FPS = 120
+WEISS = (255, 255, 255)
+scene = 1
+
+fenster = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+pygame.display.set_caption("Spiel mit der NETTEN Biene")
+clock = pygame.time.Clock()
+
+# --- Load images ---
+spieler_original = pygame.image.load("plaschi.png").convert_alpha()
+# optional: start smaller
+spieler_original = pygame.transform.scale(spieler_original, (275 // 2, 362 // 2))
+
+gras = pygame.image.load("street.jpg").convert_alpha()
+gras = pygame.transform.scale(gras, (W, H))
+
+# --- Player starting position ---
+spielerposX, spielerposY = 300, 300
+
+# --- Scaling bounds ---
+minY = 100  # top of screen where player is smallest
+maxY = H - spieler_original.get_height()  # bottom of screen = original size
+min_scale = 0.5  # smallest size at top
+max_scale = 1.0  # original size at bottom
+
+spielaktiv = True
+
+while spielaktiv and scene == 1:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            spielaktiv = False
+
+    # --- Movement ---
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_SPACE]:
+        spielerposY -= 3
+    if keys[pygame.K_s]:
+        spielerposY += 3
+    if keys[pygame.K_a]:
+        spielerposX -= 3
+    if keys[pygame.K_d]:
+        spielerposX += 3
+
+    # --- Clamp position ---
+    spielerposX = max(0, min(spielerposX, W - spieler_original.get_width()))
+    spielerposY = max(minY, min(spielerposY, maxY))
+
+    # --- Calculate scale factor based on Y ---
+    scale_factor = min_scale + (spielerposY - minY) / (maxY - minY) * (max_scale - min_scale)
+
+    original_width, original_height = spieler_original.get_size()
+    new_width = int(original_width * scale_factor)
+    new_height = int(original_height * scale_factor)
+
+    scaled_image = pygame.transform.scale(spieler_original, (new_width, new_height))
+
+    # --- Keep feet at the player Y position ---
+    draw_posY = spielerposY - new_height
+
+    # --- Render ---
+    fenster.fill(WEISS)
+    fenster.blit(gras, (0, 0))
+    fenster.blit(scaled_image, (spielerposX, draw_posY))
 
     pygame.display.flip()
     clock.tick(FPS)
